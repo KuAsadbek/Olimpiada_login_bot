@@ -127,11 +127,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # bots
-BOT_TOKEN = '6717297238:AAGDv3sVDXPa4FwIbAexZjNGsNEQtquufMc'
+BOT_TOKEN = '6717297238:AAHUhM6FBNAiNfwWTH1DsPq53xYqM1G8dcY'
 ADMIN_ID = [767560862]
 CHANEL_ID = -1002010508021
 
-decs = 'main_app_descriptionmod'
-usermod = 'main_app_usermod'
-cat = 'main_app_categirymod'
-but = 'main_app_buttonmod'
+DESCR = 'main_app_descriptionmod'
+USERMOD = 'main_app_usermod'
+CAT = 'main_app_categirymod'
+BUT = 'main_app_buttonmod'

@@ -1,5 +1,6 @@
 import sqlite3
 
+
 class SQLiteCRUD:
     def __init__(self, db_name):
         """Инициализация подключения к базе данных."""
@@ -58,7 +59,11 @@ but = 'main_app_buttonmod'
 if __name__ == "__main__":
     db = SQLiteCRUD('db.sqlite3')
 
-
+    all_users_data = db.read(usermod)
+    false_users_data = db.read(usermod,where_clause='payment = 1')
+    true_users_data = db.read(usermod,where_clause='payment = 0')
+    for i in false_users_data:
+        print(i)
  
     # Создание таблицы
     # db.create_table('main_app_userscarts', {

@@ -6,7 +6,6 @@ class save_user_data(models.Model):
     school = models.CharField(max_length=100,verbose_name='Maktab',null=True,blank=True)
     city = models.CharField(max_length=100,verbose_name='Tuman',null=True,blank=True)
     number = models.CharField(max_length=100,verbose_name='Telefon rakami',null=True,blank=True)
-    payment = models.BooleanField(default=False,verbose_name='Tolov',null=True,blank=True)
     language = models.CharField(max_length=5,verbose_name='Til',null=True,blank=True)
     
     def __str__(self):

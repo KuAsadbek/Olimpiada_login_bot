@@ -192,7 +192,8 @@ async def handle_media(message: Message, state: FSMContext):
             caption=f"Чек от пользователя <a href='{url}'><b>{title}</b></a>",
             reply_markup=button.as_markup()
         )
-        await message.answer("Ваш чек отправлено на проверку!")
+        await message.answer("Ваш чек отправлено на проверку!",reply_markup=CreateInline('Оставить комментарий'))
+        await state.set_state(StateUser.check)
 
     elif message.content_type == ContentType.DOCUMENT:
         if message.document.mime_type == 'application/pdf':
@@ -215,6 +216,8 @@ async def handle_media(message: Message, state: FSMContext):
                 reply_markup=button.as_markup()
             )
             await message.answer("Ваш чек отправлено на проверку!",reply_markup=CreateInline('Оставить комментарий'))
+            await state.set_state(StateUser.check)
+
     else:
         await message.answer("Пожалуйста, отправьте Фото или PDF файл.")
 

@@ -40,9 +40,9 @@ class SQLiteCRUD:
         self.cursor.execute(update_query)
         self.connection.commit()
 
-    def delete(self, table_name, where_clause,where_product):
+    def delete(self, table_name, where_clause):
         """Удаление записей из таблицы."""
-        delete_query = f"DELETE FROM {table_name} WHERE {where_clause} AND {where_product};"
+        delete_query = f"DELETE FROM {table_name} WHERE {where_clause}"
         self.cursor.execute(delete_query)
         self.connection.commit()
 
@@ -55,15 +55,23 @@ decs = 'main_app_descriptionmod'
 usermod = 'main_app_usermod'
 cat = 'main_app_categirymod'
 but = 'main_app_buttonmod'
+SAVE_DATA = 'main_app_save_user_data'
 # Пример использования
 if __name__ == "__main__":
     db = SQLiteCRUD('db.sqlite3')
+    
+    # db.delete(SAVE_DATA,where_clause=f'telegram_id = 767560862')
 
-    all_users_data = db.read(usermod)
-    false_users_data = db.read(usermod,where_clause='payment = 1')
-    true_users_data = db.read(usermod,where_clause='payment = 0')
-    for i in false_users_data:
-        print(i)
+    # save_data = db.read(SAVE_DATA)
+    save_data = db.read(SAVE_DATA,where_clause=f'telegram_id = {767560862}')
+
+    print(save_data[0][7])
+
+    # all_users_data = db.read(usermod)
+    # false_users_data = db.read(usermod,where_clause='payment = 1')
+    # true_users_data = db.read(usermod,where_clause='payment = 0')
+    # for i in false_users_data:
+    #     print(i)
  
     # Создание таблицы
     # db.create_table('main_app_userscarts', {

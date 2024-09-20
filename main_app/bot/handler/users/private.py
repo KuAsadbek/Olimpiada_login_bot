@@ -1,9 +1,9 @@
 from aiogram import Router,F
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.fsm.context import FSMContext
 from aiogram.filters.command import CommandStart
-from aiogram.types import Message,CallbackQuery,KeyboardButton,ReplyKeyboardMarkup,ContentType,FSInputFile
-import os
-from set_app.settings import BUT,DESCR,USERMOD,ADMIN_ID,CHANEL_ID
+from aiogram.types import Message,CallbackQuery,KeyboardButton,ReplyKeyboardMarkup,ContentType,FSInputFile,InlineKeyboardButton,ReplyKeyboardRemove
+from set_app.settings import BUT,DESCR,USERMOD,ADMIN_ID,CHANEL_ID,SAVE_DATA
 
 from ...utils.db.class_db import SQLiteCRUD
 from ...states.state_user.state_us import StateUser
@@ -16,11 +16,11 @@ user_private_router.message.filter(chat_type_filter(['private']))
 db = SQLiteCRUD('db.sqlite3')
 
 @user_private_router.message(CommandStart())
-async def private_start(message:Message):
+async def private_start(message:Message,state:FSMContext):
     user_id = message.from_user.id
-    if user_id in ADMIN_ID:
-        await message.answer('Hi Boos you need excel?',reply_markup=CreateInline('send_excel'))
-    else:
+    await state.update_data({'user_id':user_id})
+    user_check = db.read(SAVE_DATA,where_clause=f'telegram_id = {user_id}')
+    if user_check == None:
         main = db.read(
             USERMOD,
             where_clause=f'telegram_id = {user_id}'
@@ -31,15 +31,13 @@ async def private_start(message:Message):
                 for i in db.read(DESCR,where_clause=f'title_id = {1}'):
                     text = i[2]
                 await message.answer(
-                    f'{text}',
-                    reply_markup=CreateInline('Оставить комментарий')
+                    f'{text}'
                 )
             elif lg == 'uz':
                 for i in db.read(DESCR,where_clause=f'title_id = {1}'):
                     text = i[1]
                 await message.answer(
-                    f'{text}',
-                    reply_markup=CreateInline('Izoh koldiring')
+                    f'{text}'
                 )
         else:
             for i in db.read(DESCR,where_clause=f'title_id = {1}'):
@@ -48,24 +46,8 @@ async def private_start(message:Message):
                 f'{text}',
                 reply_markup=CreateInline(ru='Ru',uz='Uz')
             )
-
-@user_private_router.callback_query(F.data=='send_excel')
-async def send(call:CallbackQuery):
-    all_users_data = db.read(USERMOD)
-    true_users_data = db.read(USERMOD,where_clause='payment = 1')
-    false_users_data = db.read(USERMOD,where_clause='payment = 0')
-    # Создание файла Excel
-    file_path = create_excel_with_data(all_users_data, true_users_data, false_users_data, "user_data.xlsx")
-
-    # Проверка на существование файла
-    if file_path and os.path.exists(file_path):
-        # Отправка файла
-        document = FSInputFile(file_path)
-        await call.message.answer_document(document=document, caption='user_data.xlsx')
     else:
-        await call.message.reply("Произошла ошибка при создании файла.")
-
-
+        await message.answer('Ваша заявка уже отправлена')
 
 @user_private_router.callback_query(F.data=='Оставить комментарий')
 async def mes(call:CallbackQuery,state:FSMContext):
@@ -93,6 +75,7 @@ async def cmd_ru(call:CallbackQuery,state:FSMContext):
         des,
         reply_markup=CreateBut([p[2] for p in db.read(BUT)],back_ru='Назад')
     )
+    await call.message.edit_reply_markup(reply_markup=None)
     await state.set_state(StateUser.school)
 
 @user_private_router.callback_query(F.data=='back_ru',StateUser.school)
@@ -103,6 +86,7 @@ async def cmd_ru(call:CallbackQuery,state:FSMContext):
         f'{text}',
         reply_markup=CreateInline(ru='Ru',uz='Uz')
     )
+    call.message.edit_reply_markup(reply_markup=None)
     await state.clear()
 
 @user_private_router.callback_query(F.data,StateUser.school)
@@ -112,6 +96,7 @@ async def name(call:CallbackQuery,state:FSMContext):
     for i in db.read(DESCR,where_clause='title_id = 3'):
         title = i[2]
     await call.message.answer(title)
+    await call.message.edit_reply_markup(reply_markup=None)
     await state.set_state(StateUser.name)
 
 @user_private_router.message(F.text,StateUser.name)
@@ -139,7 +124,8 @@ async def city1(message:Message,state:FSMContext):
                 )
             ]
         ],
-        resize_keyboard=True
+        resize_keyboard=True,
+        one_time_keyboard=True
     )
     await message.answer(number,reply_markup=contact_button)
     await state.set_state(StateUser.number)
@@ -148,7 +134,7 @@ async def city1(message:Message,state:FSMContext):
 async def num(message:Message,state:FSMContext):
     num = message.contact.phone_number
 
-    if num.startswith('+998'):
+    if num.startswith('+380') and len(num) == 13:
         await state.update_data({'num':num})
         for i in db.read(DESCR,where_clause='title_id = 7'):
             py = i[2]
@@ -166,68 +152,71 @@ async def num(message:Message,state:FSMContext):
 
 @user_private_router.callback_query(F.data=='Оплатить Онляйн',StateUser.py)
 async def py(call:CallbackQuery,state:FSMContext):
-    await call.message.answer('Отправьте чек')
+    await call.message.answer('Отправьте чек',reply_markup=ReplyKeyboardRemove())
+    await call.message.edit_reply_markup(reply_markup=None)
     await state.set_state(StateUser.py1)
 
 @user_private_router.message(StateUser.py1,MediaFilter())
 async def handle_media(message: Message, state: FSMContext):
     data = await state.get_data()
-    if message.content_type == ContentType.PHOTO:
-        name = data.get('title')
-        url = message.from_user.url
-        photo_id = message.photo[-1].file_id
-        for admin_id  in ADMIN_ID:
-            await message.bot.send_photo(
-                chat_id= admin_id ,  # ID администратора
-                photo=photo_id,
-                caption=f"Чек от пользователя <a href='{url}'>{name}</a>",
-                reply_markup=CreateInline('Принять', 'Отклонить')
-            )
-        await message.answer("Ваш чек отправлено на проверку!")
-        await state.set_state(StateUser.check)
 
-    elif message.content_type == ContentType.DOCUMENT:
-        if message.document.mime_type == 'application/pdf':
-            name = data.get('title')
-            url = message.from_user.url
-            for admin_id in ADMIN_ID:
-                await message.bot.send_document(
-                    chat_id= admin_id ,
-                    document=message.document.file_id,
-                    caption=f"PDF файл от пользователя <a href='{url}'>{name}</a>",
-                    reply_markup=CreateInline('Принять', 'Отклонить')
-                )
-            await message.answer("Ваш чек отправлено на проверку!")
-            await state.set_state(StateUser.check)
-    else:
-        await message.answer("Пожалуйста, отправьте Фото или PDF файл.")
-
-@user_private_router.callback_query(F.data=='Принять',StateUser.check)
-async def check(call:CallbackQuery,state:FSMContext):
-    data = await state.get_data()
+    user_id = data.get('user_id')
     num = data.get('num')
     city = data.get('city')
     title = data.get('title')
     school = data.get('school')
-    py = True
-    user_id = call.from_user.id
-    db.insert(
-        USERMOD, 
-        telegram_id=user_id, 
-        full_name=title, 
-        school=school, 
-        city=city, 
-        number=str(num), 
-        payment=py, 
-        language='ru' 
-    )
-    await call.message.answer('Ваш чек принят!')
-    await state.clear()
+    
+    button = InlineKeyboardBuilder()
+    button.add(InlineKeyboardButton(text='Принять',callback_data=f'Tr_{user_id}'))
+    button.add(InlineKeyboardButton(text='Отклонить',callback_data=f'Fr_{user_id}'))
+    button.adjust(2)
 
-@user_private_router.callback_query(F.data=='Отклонить',StateUser.check)
-async def check(call:CallbackQuery,state:FSMContext):
-    await call.message.answer('Чек не прошел проверку!!!\n Отправьте ваш чек Заново!')
-    await state.set_state(StateUser.py1)
+    if message.content_type == ContentType.PHOTO:
+
+        url = message.from_user.url
+        photo_id = message.photo[-1].file_id
+
+        db.insert(
+            SAVE_DATA,
+            telegram_id = user_id,
+            full_name = title,
+            school = school,
+            city = city,
+            number = num,
+            language = 'ru'
+        )
+
+        await message.bot.send_photo(
+            chat_id= CHANEL_ID ,  # ID администратора
+            photo=photo_id,
+            caption=f"Чек от пользователя <a href='{url}'><b>{title}</b></a>",
+            reply_markup=button.as_markup()
+        )
+        await message.answer("Ваш чек отправлено на проверку!")
+
+    elif message.content_type == ContentType.DOCUMENT:
+        if message.document.mime_type == 'application/pdf':
+            url = message.from_user.url
+
+            db.insert(
+                SAVE_DATA,
+                telegram_id = user_id,
+                full_name = title,
+                school = school,
+                city = city,
+                number = num,
+                language = 'ru'
+            )
+
+            await message.bot.send_document(
+                chat_id= CHANEL_ID ,
+                document=message.document.file_id,
+                caption=f"PDF файл от пользователя <a href='{url}'><b>{title}</b></a>",
+                reply_markup=button.as_markup()
+            )
+            await message.answer("Ваш чек отправлено на проверку!",reply_markup=CreateInline('Оставить комментарий'))
+    else:
+        await message.answer("Пожалуйста, отправьте Фото или PDF файл.")
 
 @user_private_router.callback_query(F.data=='Прийти и заплатить',StateUser.py)
 async def py(call:CallbackQuery,state:FSMContext):
@@ -263,6 +252,8 @@ async def py(call:CallbackQuery,state:FSMContext):
                 f'{text}',
                 reply_markup=CreateInline('Оставить комментарий')
             )
+            await call.message.edit_reply_markup(reply_markup=None)
+
         elif lg == 'uz':
             for i in db.read(DESCR,where_clause=f'title_id = {1}'):
                 text = i[1]
@@ -270,5 +261,6 @@ async def py(call:CallbackQuery,state:FSMContext):
                 f'{text}',
                 reply_markup=CreateInline('Izoh koldiring')
             )
+            await call.message.edit_reply_markup(reply_markup=None)
         await state.clear()
 # ru_end

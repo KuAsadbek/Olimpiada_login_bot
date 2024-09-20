@@ -1,5 +1,17 @@
 from django.db import models
 
+class save_user_data(models.Model):
+    telegram_id = models.BigIntegerField(verbose_name='Telegram ID',null=True,blank=True)
+    full_name = models.CharField(max_length=100,verbose_name='ФИО',null=True,blank=True)
+    school = models.CharField(max_length=100,verbose_name='Maktab',null=True,blank=True)
+    city = models.CharField(max_length=100,verbose_name='Tuman',null=True,blank=True)
+    number = models.CharField(max_length=100,verbose_name='Telefon rakami',null=True,blank=True)
+    payment = models.BooleanField(default=False,verbose_name='Tolov',null=True,blank=True)
+    language = models.CharField(max_length=5,verbose_name='Til',null=True,blank=True)
+    
+    def __str__(self):
+        return self.full_name
+
 class UserMod(models.Model):
     telegram_id = models.BigIntegerField(verbose_name='Telegram ID')
     full_name = models.CharField(max_length=100,verbose_name='ФИО')

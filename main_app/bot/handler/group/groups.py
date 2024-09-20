@@ -1,62 +1,105 @@
-from aiogram import Router,F,Bot
-from aiogram.filters import StateFilter
+import os
+from aiogram import Router,F
+from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.filters import CommandStart,and_f
-from aiogram.utils.media_group import MediaGroupBuilder
-from aiogram.types import Message,ChatPermissions,CallbackQuery,KeyboardButton,FSInputFile
+from aiogram.types import Message,CallbackQuery,FSInputFile
 
-from ...filters.chat_type import chat_type_filter
+from set_app.settings import DESCR,USERMOD,SAVE_DATA,BUT
+
+from ...utils.db.class_db import SQLiteCRUD
+from ...filters.chat_type import chat_type_filter,create_excel_with_data
 from ...states.state_user.state_us import StateUser
-from ...keyboards.inline.button import CreateInline
-from ...keyboards.reply.rep_button import Createreply
+from ...keyboards.inline.button import CreateInline,CreateBut
 
+group_router = Router()
+group_router.message.filter(chat_type_filter(['supergroup']))
 
-user_private_router = Router()
-user_private_router.message.filter(chat_type_filter(['group']))
+db = SQLiteCRUD('db.sqlite3')
 
-
-@user_private_router.message(CommandStart())
+@group_router.message(CommandStart())
 async def one_cmd(message:Message):
-    await message.answer('hi bro')
+    await message.answer(f'Hi bro you need excel file?',CreateInline('send_excel'))
 
-@user_private_router.message(F.text=='hi',F.chat.type=='supergroup')
-async def find(message:Message):
-    await message.answer(f'{message.chat.title}\n{message.chat.type}\n{message.chat.id}')
-    await message.delete()
+@group_router.callback_query(F.data=='send_excel')
+async def send(call:CallbackQuery):
+    all_users_data = db.read(USERMOD)
+    true_users_data = db.read(USERMOD,where_clause='payment = 1')
+    false_users_data = db.read(USERMOD,where_clause='payment = 0')
+    # Создание файла Excel
+    file_path = create_excel_with_data(all_users_data, true_users_data, false_users_data, "user_data.xlsx")
 
-@user_private_router.message(F.chat.type=='supergroup',F.new_chat_members)
-async def new_users(message:Message):
-    for i in message.new_chat_members:
-        await message.answer(f"{i.first_name} joined our group ")
-        await message.delete()
+    # Проверка на существование файла
+    if file_path and os.path.exists(file_path):
+        # Отправка файла
+        document = FSInputFile(file_path)
+        await call.message.answer_document(document=document, caption='user_data.xlsx')
+        await call.message.delete_reply_markup(reply_markup=None)
+    else:
+        await call.message.reply("Произошла ошибка при создании файла.")
 
-@user_private_router.message(F.chat.type=='supergroup',F.new_chat.member)
-async def uot_group(message:Message):
-    await message.answer(f"{message.left_chat_member.first_name} left the group")
-    await message.delete()
+@group_router.callback_query(F.data)
+async def check(call:CallbackQuery,state:FSMContext):
+    str_text, index = call.data.split('_')
+    user_id = int(index)
+    print(str_text,user_id,type(user_id))
+    save_data = db.read(SAVE_DATA,where_clause=f'telegram_id = {user_id}')
+    lg = save_data[0][7]
 
-@user_private_router.message(F.chat.type=='supergroup',and_f(F.text=='ban chat',F.reply_to_message))
-async def dont_send_message(message:Message):
-    user_id = message.reply_to_message.from_user.id
-    per = ChatPermissions(can_send_messages=False)
-    await message.chat.restrict(user_id,per)
-    await message.answer(f'{message.reply_to_message.from_user.first_name} got banned')
+    if str_text == 'Tr':
+        
+        user = save_data[0][1]
+        title = save_data[0][2]
+        school = save_data[0][3]
+        city = save_data[0][4]
+        num = save_data[0][5]
+        py = True
 
-@user_private_router.message(F.chat.type=='supergroup',and_f(F.text=='can',F.reply_to_message))
-async def dont_send_message(message:Message):
-    user_id = message.reply_to_message.from_user.id
-    per = ChatPermissions(can_send_messages=True)
-    await message.chat.restrict(user_id,per)
-    await message.answer(f'{message.reply_to_message.from_user.first_name} gained access to the chat ')
+        db.insert(
+            USERMOD,
+            telegram_id = user,
+            full_name = title,
+            school = school,
+            city = city,
+            number = num,
+            payment = py,
+            language = lg
+        )
 
-@user_private_router.message(F.chat.type=='supergroup',and_f(F.text=='ban user',F.reply_to_message))
-async def ban_user(message:Message):
-    user_id = message.reply_to_message.from_user.id
-    await message.chat.ban_sender_chat(user_id)
-    await message.answer(f'{message.reply_to_message.from_user.first_name} got banned')
+        db.delete(SAVE_DATA,where_clause=f'telegram_id = {user_id}')
 
-@user_private_router.message(F.chat.type=='supergroup',and_f(F.text=='unban user',F.reply_to_message))
-async def ban_user(message:Message):
-    user_id = message.reply_to_message.from_user.id
-    await message.chat.unban_sender_chat(user_id)
-    await message.answer(f'{message.reply_to_message.from_user.first_name} unbanned')
+        if lg == 'ru':
+            ru = 2
+            r = 'Чек прошел проверку!!!'
+        else:
+            ru = 1
+            r = 'Chek tasdiqlandi!!!'
+        
+        for i in db.read(DESCR,where_clause=f'title_id = {1}'):
+            text = f'{i[ru]}\n\n{r}'
+
+        await call.message.bot.send_message(
+            chat_id=user_id,
+            text=text
+        )
+        await call.message.edit_reply_markup(reply_markup=None)  
+
+    elif str_text == 'Fr':
+        if lg == 'ru':
+            r = 2
+            ru = 'Чек не прошел проверку!!!\n Пройдите регистрацию заново -> /start'
+        else:
+            r = 1
+            ru = 'Tekshiruv tasdiqlanmadi!!!\nQayta ro\'yxatdan o\'ting -> /start'
+        
+        for i in db.read(DESCR,where_clause='title_id = 4'):
+            des = f'{i[r]}\n\n{ru}'
+
+        db.delete(SAVE_DATA,where_clause=f'telegram_id = {user_id}')
+
+        await call.message.bot.send_message(
+            chat_id=user_id,
+            text=des,
+            reply_markup=CreateBut([p[2] for p in db.read(BUT)],back_ru='Назад')
+        )
+        await state.set_state(StateUser.school)
+        await call.message.edit_reply_markup(reply_markup=None)

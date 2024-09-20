@@ -1,8 +1,9 @@
 from aiogram import Router,F
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message,CallbackQuery,KeyboardButton,ReplyKeyboardMarkup,ContentType
+from aiogram.types import Message,CallbackQuery,KeyboardButton,ReplyKeyboardMarkup,ContentType,InlineKeyboardButton,ReplyKeyboardRemove
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from set_app.settings import BUT,DESCR,USERMOD,ADMIN_ID,CHANEL_ID
+from set_app.settings import BUT,DESCR,USERMOD,CHANEL_ID,SAVE_DATA
 
 from ...utils.db.class_db import SQLiteCRUD
 from ...states.state_user.state_us import StateUser
@@ -40,6 +41,7 @@ async def cmd_ru(call:CallbackQuery,state:FSMContext):
         des,
         reply_markup=CreateBut([p[1] for p in db.read(BUT)],back_uz='Orqaga')
     )
+    await call.message.edit_reply_markup(reply_markup=None)
     await state.set_state(StateUser.school_uz)
 
 @user_private_router_uz.callback_query(F.data=='back_uz')
@@ -50,6 +52,7 @@ async def back(call:CallbackQuery,state:FSMContext):
         f'{text}',
         reply_markup=CreateInline(ru='Ru',uz='Uz')
     )
+    await call.message.edit_reply_markup(reply_markup=None)
     await state.clear()
 
 @user_private_router_uz.callback_query(F.data,StateUser.school_uz)
@@ -59,6 +62,7 @@ async def name(call:CallbackQuery,state:FSMContext):
     for i in db.read(DESCR,where_clause='title_id = 3'):
         title = i[1]
     await call.message.answer(title)
+    await call.message.edit_reply_markup(reply_markup=None)
     await state.set_state(StateUser.name_uz)
 
 @user_private_router_uz.message(F.text,StateUser.name_uz)
@@ -86,7 +90,8 @@ async def city1(message:Message,state:FSMContext):
                 )
             ]
         ],
-        resize_keyboard=True
+        resize_keyboard=True,
+        one_time_keyboard=True
     )
     await message.answer(number,reply_markup=contact_button)
     await state.set_state(StateUser.number_uz)
@@ -94,76 +99,90 @@ async def city1(message:Message,state:FSMContext):
 @user_private_router_uz.message(F.contains,StateUser.number_uz)
 async def num(message:Message,state:FSMContext):
     num = message.contact.phone_number
-    await state.update_data({'num':num})
-    for i in db.read(DESCR,where_clause='title_id = 7'):
-        py = i[1]
-    await message.answer(py,reply_markup=CreateInline('Onlyne tolov','Borib tolash'))
-    await state.set_state(StateUser.py_uz)
+    if num.startswith('+380') and len(num) == 13:
+        await state.update_data({'num':num})
+        for i in db.read(DESCR,where_clause='title_id = 7'):
+            py = i[1]
+        await message.answer(
+            py,
+            reply_markup=CreateInline('Onlyne tolov','Borib tolash')
+        )
+        await state.set_state(StateUser.py_uz)
+    else:
+        await message.answer(
+            "+998 bilan boshlanadigan o'zbek raqamini yuboring."
+        )
 
 @user_private_router_uz.callback_query(F.data=='Onlyne tolov',StateUser.py_uz)
 async def py(call:CallbackQuery,state:FSMContext):
-    await call.message.answer('Tolov Chekini yuboring')
+    await call.message.answer('Tolov Chekini yuboring',reply_markup=ReplyKeyboardRemove())
+    await call.message.edit_reply_markup(reply_markup=None)
     await state.set_state(StateUser.py1_uz)
 
 @user_private_router_uz.message(StateUser.py1_uz,MediaFilter())
 async def handle_media(message: Message, state: FSMContext):
     data = await state.get_data()
+
+    user_id = data.get('user_id')
+    num = data.get('num')
+    city = data.get('city')
+    title = data.get('title')
+    school = data.get('school')
+
+    button = InlineKeyboardBuilder()
+    button.add(InlineKeyboardButton(text='Qabul qiling',callback_data=f'Tr_{user_id}'))
+    button.add(InlineKeyboardButton(text='Rad etish',callback_data=f'Fr_{user_id}'))
+    button.adjust(2)
+
     if message.content_type == ContentType.PHOTO:
-        name = data.get('title')
+
         url = message.from_user.url
         photo_id = message.photo[-1].file_id
-        for admin_id  in ADMIN_ID:
-            await message.bot.send_photo(
-                chat_id= admin_id ,  # ID администратора
-                photo=photo_id,
-                caption=f"Чек от пользователя <a href='{url}'>{name}</a>",
-                reply_markup=CreateInline('Qabul qiling', 'Rad etish')
-            )
+
+        db.insert(
+            SAVE_DATA,
+            telegram_id = user_id,
+            full_name = title,
+            school = school,
+            city = city,
+            number = num,
+            language = 'uz'
+        )
+
+        await message.bot.send_photo(
+            chat_id= CHANEL_ID ,  # ID администратора
+            photo=photo_id,
+            caption=f"Чек от пользователя <a href='{url}'><b>{title}</b></a>",
+            reply_markup=button.as_markup()
+        )
         await message.answer("Chekingiz tekshirish uchun yuborildi!")
         await state.set_state(StateUser.check_uz)
 
     elif message.content_type == ContentType.DOCUMENT:
         if message.document.mime_type == 'application/pdf':
-            name = data.get('title')
+
             url = message.from_user.url
-            for admin_id in ADMIN_ID:
-                await message.bot.send_document(
-                    chat_id= admin_id ,
-                    document=message.document.file_id,
-                    caption=f"PDF файл от пользователя <a href='{url}'>{name}</a>",
-                    reply_markup=CreateInline('Qabul qiling', 'Rad etish')
-                )
+
+            db.insert(
+                SAVE_DATA,
+                telegram_id = user_id,
+                full_name = title,
+                school = school,
+                city = city,
+                number = num,
+                language = 'ru'
+            )
+
+            await message.bot.send_document(
+                chat_id= CHANEL_ID ,
+                document=message.document.file_id,
+                caption=f"PDF файл от пользователя <a href='{url}'><b>{title}</b></a>",
+                reply_markup=button.as_markup()
+            )
             await message.answer("Chekingiz tekshirish uchun yuborildi!")
             await state.set_state(StateUser.check_uz)
         else:
             await message.answer("Iltimos, fotosurat yoki PDF faylini yuboring.")
-
-@user_private_router_uz.callback_query(F.data=='Qabul qiling',StateUser.check_uz)
-async def check(call:CallbackQuery,state:FSMContext):
-    data = await state.get_data()
-    num = data.get('num')
-    city = data.get('city')
-    title = data.get('title')
-    school = data.get('school')
-    py = True
-    user_id = call.from_user.id
-    db.insert(
-        USERMOD, 
-        telegram_id=user_id, 
-        full_name=title, 
-        school=school, city=city,
-        number=str(num), 
-        payment=py, 
-        language='ru' 
-    )
-    await call.message.answer('Chekingiz qabul qilindi!')
-    await state.clear()
-
-@user_private_router_uz.callback_query(F.data=='Rad etish',StateUser.check_uz)
-async def check(call:CallbackQuery,state:FSMContext):
-    await call.message.answer('Chek tasdiqlanmadi!!!\n Chekingizni qayta yuboring!')
-    await state.set_state(StateUser.py1_uz)
-
 
 @user_private_router_uz.callback_query(F.data=='Borib tolash',StateUser.py_uz)
 async def py(call:CallbackQuery,state:FSMContext):

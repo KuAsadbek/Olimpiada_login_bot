@@ -52,48 +52,61 @@ def create_excel_with_data(all_users, true_users, false_users, file_name="output
     try:
         workbook = openpyxl.Workbook()
         workbook.remove(workbook.active)
-
-        sheet_1 = workbook.create_sheet("Sheet_1")
-        sheet_2 = workbook.create_sheet("Sheet_2")
-        sheet_3 = workbook.create_sheet("Sheet_3")
-
-        sheet_1.title = "All users"
-        sheet_2.title = "True users"
-        sheet_3.title = "False users"
-
         headers = ["id", "Telegram ID", "Name", "School", "City", "Number", "Payment", "Language"]
-        sheet_1.append(headers)
-        sheet_2.append(headers)
-        sheet_3.append(headers)
+        if true_users == None or false_users == None:
+            sheet_1 = workbook.create_sheet("Sheet_1")
+            sheet_1.title = "All users"
+            sheet_1.append(headers)
+            for row in all_users:
+                sheet_1.append(row)
+            columns_to_style = ["A", "B", "C", "D", "E", "F", "G", "H"]
+            style_header_cells(sheet_1, columns_to_style)
+            style_body_cells(sheet_1, columns_to_style)
+            style_column_g(sheet_1)
+            workbook.save(file_name)
+            print(f"Файл '{file_name}' успешно создан.")
+            return file_name
+        else:
+            sheet_1 = workbook.create_sheet("Sheet_1")
+            sheet_2 = workbook.create_sheet("Sheet_2")
+            sheet_3 = workbook.create_sheet("Sheet_3")
 
-        # Добавляем данные
-        for row in all_users:
-            sheet_1.append(row)
+            sheet_1.title = "All users"
+            sheet_2.title = "True users"
+            sheet_3.title = "False users"
 
-        for row in true_users:
-            sheet_2.append(row)
+            sheet_1.append(headers)
+            sheet_2.append(headers)
+            sheet_3.append(headers)
 
-        for row in false_users:
-            sheet_3.append(row)
-        
-        columns_to_style = ["A", "B", "C", "D", "E", "F", "G", "H"]
+            # Добавляем данные
+            for row in all_users:
+                sheet_1.append(row)
 
-        # Стилизация заголовков и данных
-        style_header_cells(sheet_1, columns_to_style)
-        style_header_cells(sheet_2, columns_to_style)
-        style_header_cells(sheet_3, columns_to_style)
+            for row in true_users:
+                sheet_2.append(row)
 
-        style_body_cells(sheet_1, columns_to_style)
-        style_body_cells(sheet_2, columns_to_style)
-        style_body_cells(sheet_3, columns_to_style)
+            for row in false_users:
+                sheet_3.append(row)
+            
+            columns_to_style = ["A", "B", "C", "D", "E", "F", "G", "H"]
 
-        # Раскрашиваем колонку 'G' в зависимости от значений в sheet_1
-        style_column_g(sheet_1)
+            # Стилизация заголовков и данных
+            style_header_cells(sheet_1, columns_to_style)
+            style_header_cells(sheet_2, columns_to_style)
+            style_header_cells(sheet_3, columns_to_style)
 
-        # Сохраняем файл
-        workbook.save(file_name)
-        print(f"Файл '{file_name}' успешно создан.")
-        return file_name
+            style_body_cells(sheet_1, columns_to_style)
+            style_body_cells(sheet_2, columns_to_style)
+            style_body_cells(sheet_3, columns_to_style)
+
+            # Раскрашиваем колонку 'G' в зависимости от значений в sheet_1
+            style_column_g(sheet_1)
+
+            # Сохраняем файл
+            workbook.save(file_name)
+            print(f"Файл '{file_name}' успешно создан.")
+            return file_name
     except Exception as e:
         print(f"Ошибка при создании Excel файла: {e}")
         return None

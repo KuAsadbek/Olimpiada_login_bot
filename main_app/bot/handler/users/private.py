@@ -52,6 +52,7 @@ async def private_start(message:Message,state:FSMContext):
 @user_private_router.callback_query(F.data=='Оставить комментарий')
 async def mes(call:CallbackQuery,state:FSMContext):
     await call.message.answer('Ваш комментарий')
+    await call.message.edit_reply_markup(reply_markup=None)
     await state.set_state(StateUser.comment)
 
 @user_private_router.message(StateUser.comment,F.text)
@@ -73,7 +74,7 @@ async def cmd_ru(call:CallbackQuery,state:FSMContext):
         des = i[2]
     await call.message.answer(
         des,
-        reply_markup=CreateBut([p[2] for p in db.read(BUT)],back_ru='Назад')
+        reply_markup=CreateBut([p[1] for p in db.read(BUT)],back_ru='Назад')
     )
     await call.message.edit_reply_markup(reply_markup=None)
     await state.set_state(StateUser.school)
@@ -160,21 +161,54 @@ async def py(call:CallbackQuery,state:FSMContext):
 async def handle_media(message: Message, state: FSMContext):
     data = await state.get_data()
 
-    user_id = data.get('user_id')
     num = data.get('num')
     city = data.get('city')
     title = data.get('title')
     school = data.get('school')
-    
-    button = InlineKeyboardBuilder()
-    button.add(InlineKeyboardButton(text='Принять',callback_data=f'Tr_{user_id}'))
-    button.add(InlineKeyboardButton(text='Отклонить',callback_data=f'Fr_{user_id}'))
-    button.adjust(2)
 
     if message.content_type == ContentType.PHOTO:
 
         url = message.from_user.url
         photo_id = message.photo[-1].file_id
+
+        await state.update_data({'photo_id':photo_id,'url':url,'n':1})
+
+        await message.reply(
+            text=f'Ваш профиль \n\nИмя: {title}\n\nКлаасс: {school}\n\nГород: {city}\n\nНомер: {num}\n\nваш чек отправить на проверку?',
+            reply_markup=CreateInline('Да','Нет')
+        )
+
+    elif message.content_type == ContentType.DOCUMENT:
+        if message.document.mime_type == 'application/pdf':
+            url = message.from_user.url
+            doc = message.document.file_id
+            await state.update_data({'doc':doc,'url':url,'n':2})
+
+            await message.reply(
+                text=f'Ваш профиль \n\nИмя: {title}\n\nКлаасс: {school}\n\nГород: {city}\n\nНомер: {num}\n\nи ваш чек отправить на проверку?',
+                reply_markup=CreateInline('Да','Нет')
+            )
+    else:
+        await message.answer("Пожалуйста, отправьте Фото или PDF файл.")
+
+@user_private_router.callback_query(F.data=='Да')
+async def yes(call:CallbackQuery,state:FSMContext):
+    data = await state.get_data()
+    n = data.get('n')
+    title = data.get('title')
+    user_id = data.get('user_id')
+    school = data.get('school')
+    city = data.get('city')
+    num = data.get('num')
+
+    button = InlineKeyboardBuilder()
+    button.add(InlineKeyboardButton(text='Принять',callback_data=f'Tr_{user_id}'))
+    button.add(InlineKeyboardButton(text='Отклонить',callback_data=f'Fr_{user_id}'))
+    button.adjust(2)
+    if n == 1:
+
+        photo_id = data.get("photo_id")
+        url = data.get('url')
 
         db.insert(
             SAVE_DATA,
@@ -186,20 +220,15 @@ async def handle_media(message: Message, state: FSMContext):
             language = 'ru'
         )
 
-        await message.bot.send_photo(
-            chat_id= CHANEL_ID ,  # ID администратора
-            photo=photo_id,
-            caption=f"Чек от пользователя <a href='{url}'><b>{title}</b></a>",
-            reply_markup=button.as_markup()
+        await call.message.bot.send_photo(
+                chat_id= CHANEL_ID ,  # ID администратора
+                photo=photo_id,
+                caption=f"Чек от пользователя <a href='{url}'><b>{title}</b></a>",
+                reply_markup=button.as_markup()
         )
-        await message.answer("Ваш чек отправлено на проверку!",reply_markup=CreateInline('Оставить комментарий'))
-        await state.set_state(StateUser.check)
-
-    elif message.content_type == ContentType.DOCUMENT:
-        if message.document.mime_type == 'application/pdf':
-            url = message.from_user.url
-
-            db.insert(
+    elif n == 2:
+        doc = data.get('doc')
+        db.insert(
                 SAVE_DATA,
                 telegram_id = user_id,
                 full_name = title,
@@ -209,20 +238,34 @@ async def handle_media(message: Message, state: FSMContext):
                 language = 'ru'
             )
 
-            await message.bot.send_document(
-                chat_id= CHANEL_ID ,
-                document=message.document.file_id,
-                caption=f"PDF файл от пользователя <a href='{url}'><b>{title}</b></a>",
-                reply_markup=button.as_markup()
-            )
-            await message.answer("Ваш чек отправлено на проверку!",reply_markup=CreateInline('Оставить комментарий'))
-            await state.set_state(StateUser.check)
+        await call.message.bot.send_document(
+            chat_id= CHANEL_ID ,
+            document=doc,
+            caption=f"PDF файл от пользователя <a href='{url}'><b>{title}</b></a>",
+            reply_markup=button.as_markup()
+        )
+    await call.message.answer("Ваш чек отправлено на проверку!",reply_markup=CreateInline('Оставить комментарий'))
+    await call.message.edit_reply_markup(reply_markup=None)
 
-    else:
-        await message.answer("Пожалуйста, отправьте Фото или PDF файл.")
+@user_private_router.callback_query(F.data=='Нет')
+async def net(call:CallbackQuery):
+    await call.message.answer("Желаете пройти регистрацию заново?\n Нажмите суда -> /start")
+    await call.message.edit_reply_markup(reply_markup=None)
 
 @user_private_router.callback_query(F.data=='Прийти и заплатить',StateUser.py)
 async def py(call:CallbackQuery,state:FSMContext):
+    data = await state.get_data()
+    num = data.get('num')
+    city = data.get('city')
+    title = data.get('title')
+    school = data.get('school')
+    await call.message.answer(
+        text=f'Ваш профиль \n\nИмя: {title}\n\nКлаасс: {school}\n\nГород: {city}\n\nНомер: {num}\n\nи ваш чек отправить на проверку?',
+        reply_markup=CreateInline(yes='Да',net='Нет')
+    )
+# ru_end
+@user_private_router.callback_query(F.data=='yes')
+async def tes(call:CallbackQuery,state:FSMContext):
     data = await state.get_data()
     num = data.get('num')
     city = data.get('city')
@@ -240,8 +283,7 @@ async def py(call:CallbackQuery,state:FSMContext):
         payment=py, 
         language='ru' 
     )
-    
-    user_id = call.from_user.id
+
     main = db.read(
         USERMOD,
         where_clause=f'telegram_id = {user_id}'
@@ -252,8 +294,7 @@ async def py(call:CallbackQuery,state:FSMContext):
             for i in db.read(DESCR,where_clause=f'title_id = {1}'):
                 text = i[2]
             await call.message.answer(
-                f'{text}',
-                reply_markup=CreateInline('Оставить комментарий')
+                f'{text}'
             )
             await call.message.edit_reply_markup(reply_markup=None)
 
@@ -261,9 +302,13 @@ async def py(call:CallbackQuery,state:FSMContext):
             for i in db.read(DESCR,where_clause=f'title_id = {1}'):
                 text = i[1]
             await call.message.answer(
-                f'{text}',
-                reply_markup=CreateInline('Izoh koldiring')
+                f'{text}'
             )
             await call.message.edit_reply_markup(reply_markup=None)
         await state.clear()
-# ru_end
+
+
+@user_private_router.callback_query(F.data=='net')
+async def net(call:CallbackQuery):
+    await call.message.answer("Желаете пройти регистрацию заново?\n Нажмите суда -> /start")
+    await call.message.edit_reply_markup(reply_markup=None)

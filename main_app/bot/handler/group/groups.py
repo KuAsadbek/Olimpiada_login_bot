@@ -32,6 +32,7 @@ async def send(call:CallbackQuery):
             # Отправка файла
             document = FSInputFile(file_path)
             await call.message.answer_document(document=document, caption='user_data.xlsx')
+            os.remove(file_path)
             await call.message.edit_reply_markup(reply_markup=None)
         else:
             await call.message.reply("Произошла ошибка при создании файла.")
@@ -44,7 +45,7 @@ async def check(call:CallbackQuery):
     user_id = int(index)
     save_data = db.read(SAVE_DATA,where_clause=f'telegram_id = {user_id}')
     
-    lg = save_data[0][7]
+    lg = save_data[0][6]
     user = save_data[0][1]
     title = save_data[0][2]
     school = save_data[0][3]

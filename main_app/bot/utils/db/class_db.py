@@ -63,9 +63,9 @@ if __name__ == "__main__":
     # db.delete(SAVE_DATA,where_clause=f'telegram_id = 767560862')
 
     # save_data = db.read(SAVE_DATA)
-    save_data = db.read(SAVE_DATA,where_clause=f'telegram_id = {767560862}')
+    save_data = db.read(but)
 
-    print(save_data[0][7])
+    print(save_data[0][1])
 
     # all_users_data = db.read(usermod)
     # false_users_data = db.read(usermod,where_clause='payment = 1')

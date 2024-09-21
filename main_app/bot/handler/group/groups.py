@@ -3,16 +3,21 @@ from aiogram import Router,F
 from aiogram.filters import CommandStart
 from aiogram.types import Message,CallbackQuery,FSInputFile
 
-from set_app.settings import DESCR,USERMOD,SAVE_DATA
-
-from ...utils.db.class_db import SQLiteCRUD
-from ...filters.chat_type import chat_type_filter,create_excel_with_data
-from ...keyboards.inline.button import CreateInline
+from utils.db.class_db import SQLiteCRUD
+from filters.chat_type import chat_type_filter,create_excel_with_data
+from keyboards.inline.button import CreateInline
 
 group_router = Router()
 group_router.message.filter(chat_type_filter(['supergroup']))
 
 db = SQLiteCRUD('db.sqlite3')
+
+
+DESCR = 'main_app_descriptionmod'
+USERMOD = 'main_app_usermod'
+CAT = 'main_app_categirymod'
+BUT = 'main_app_buttonmod'
+SAVE_DATA = 'main_app_save_user_data'
 
 @group_router.message(CommandStart())
 async def one_cmd(message:Message):

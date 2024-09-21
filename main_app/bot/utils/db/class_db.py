@@ -63,7 +63,7 @@ if __name__ == "__main__":
     # db.delete(SAVE_DATA,where_clause=f'telegram_id = 767560862')
 
     # save_data = db.read(SAVE_DATA)
-    save_data = db.read(but)
+    save_data = db.read(decs,where_clause=f'title_id = {8}')
 
     print(save_data[0][1])
 

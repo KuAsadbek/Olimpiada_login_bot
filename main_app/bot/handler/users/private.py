@@ -3,17 +3,24 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.fsm.context import FSMContext
 from aiogram.filters.command import CommandStart
 from aiogram.types import Message,CallbackQuery,KeyboardButton,ReplyKeyboardMarkup,ContentType,FSInputFile,InlineKeyboardButton,ReplyKeyboardRemove
-from set_app.settings import BUT,DESCR,USERMOD,ADMIN_ID,CHANEL_ID,SAVE_DATA
 
-from ...utils.db.class_db import SQLiteCRUD
-from ...states.state_user.state_us import StateUser
-from ...filters.chat_type import chat_type_filter,MediaFilter,create_excel_with_data
-from ...keyboards.inline.button import CreateInline,CreateBut
+from utils.db.class_db import SQLiteCRUD
+from states.state_user.state_us import StateUser
+from filters.chat_type import chat_type_filter,MediaFilter,create_excel_with_data
+from keyboards.inline.button import CreateInline,CreateBut
 
 user_private_router = Router()
 user_private_router.message.filter(chat_type_filter(['private']))
 
 db = SQLiteCRUD('db.sqlite3')
+
+CHANEL_ID = -1002020757864
+
+DESCR = 'main_app_descriptionmod'
+USERMOD = 'main_app_usermod'
+CAT = 'main_app_categirymod'
+BUT = 'main_app_buttonmod'
+SAVE_DATA = 'main_app_save_user_data'
 
 @user_private_router.message(CommandStart())
 async def private_start(message:Message,state:FSMContext):

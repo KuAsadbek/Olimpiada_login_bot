@@ -3,17 +3,23 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message,CallbackQuery,KeyboardButton,ReplyKeyboardMarkup,ContentType,InlineKeyboardButton,ReplyKeyboardRemove
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from set_app.settings import BUT,DESCR,USERMOD,CHANEL_ID,SAVE_DATA
-
-from ...utils.db.class_db import SQLiteCRUD
-from ...states.state_user.state_us import StateUser
-from ...filters.chat_type import chat_type_filter,MediaFilter
-from ...keyboards.inline.button import CreateInline,CreateBut
+from utils.db.class_db import SQLiteCRUD
+from states.state_user.state_us import StateUser
+from filters.chat_type import chat_type_filter,MediaFilter
+from keyboards.inline.button import CreateInline,CreateBut
 
 user_private_router_uz = Router()
 user_private_router_uz.message.filter(chat_type_filter(['private']))
 
 db = SQLiteCRUD('db.sqlite3')
+
+CHANEL_ID = -1002020757864
+
+DESCR = 'main_app_descriptionmod'
+USERMOD = 'main_app_usermod'
+CAT = 'main_app_categirymod'
+BUT = 'main_app_buttonmod'
+SAVE_DATA = 'main_app_save_user_data'
 
 @user_private_router_uz.callback_query(F.data=='Izoh koldiring')
 async def mes(call:CallbackQuery,state:FSMContext):
